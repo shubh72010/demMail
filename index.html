@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>demMail — Temp Inbox</title>
+  <title>demMail v3 — Powered by 1secmail</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
@@ -66,26 +66,26 @@
       cursor: pointer;
     }
 
-    .timer {
-      text-align: center;
-      margin-bottom: 1rem;
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
-
     .message {
       background: rgba(255, 255, 255, 0.05);
       padding: 1rem;
       margin-top: 1rem;
       border-radius: 10px;
     }
+
+    .timer {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
   </style>
 </head>
 <body>
   <div class="glass">
-    <h1>-// demMail</h1>
+    <h1>-// demMail v3</h1>
     <div class="email-box">
-      <span class="email-text" id="email">Generating...</span>
+      <span class="email-text" id="email">waiting for email to generate 🔥🔥💯💯</span>
       <button onclick="copyEmail()">Copy</button>
     </div>
     <div class="timer" id="timer">Expires in: 10:00</div>
@@ -93,54 +93,22 @@
   </div>
 
   <script>
-    let token = '', address = '', expiresIn = 600;
+    let email = "", login = "", domain = "";
+    let expiresIn = 600;
 
     async function generateEmail() {
-      const emailGen = `dem${Date.now()}@domail.tech`;
-
-      const res = await fetch('https://api.mail.tm/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: emailGen,
-          password: 'demcult123'
-        })
-      });
-
+      const res = await fetch('https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1');
       const data = await res.json();
-      
-      if (data['@id']) {
-        address = data.address;
-        document.getElementById('email').textContent = address;
-      } else {
-        document.getElementById('email').textContent = 'Error creating email';
-        return;
-      }
-
-      const tokenRes = await fetch('https://api.mail.tm/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: address,
-          password: 'demcult123'
-        })
-      });
-
-      const tokenData = await tokenRes.json();
-      token = tokenData.token;
-
-      fetchInbox(); // Start polling inbox
+      email = data[0];
+      [login, domain] = email.split("@");
+      document.getElementById("email").textContent = email;
     }
 
     function copyEmail() {
-      if (!address || address === '') {
-        alert("Email not ready yet!");
-        return;
-      }
-
-      navigator.clipboard.writeText(address)
-        .then(() => alert('Copied to clipboard!'))
-        .catch(err => alert('Failed to copy: ' + err));
+      if (!email) return alert("Email not ready!");
+      navigator.clipboard.writeText(email)
+        .then(() => alert("Copied to clipboard!"))
+        .catch(err => alert("Copy failed"));
     }
 
     function startTimer() {
@@ -153,34 +121,33 @@
       }, 1000);
     }
 
-    async function fetchInbox() {
+    function pollInbox() {
       setInterval(async () => {
-        if (!token) return;
+        if (!login || !domain) return;
 
-        const res = await fetch('https://api.mail.tm/messages', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await fetch(`https://www.1secmail.com/api/v1/?action=getMessages&login=${login}&domain=${domain}`);
         const data = await res.json();
 
-        const inbox = document.getElementById('inbox');
+        const inbox = document.getElementById("inbox");
         inbox.innerHTML = '';
 
-        if (data['hydra:member'].length === 0) {
-          inbox.innerHTML = '<em>No messages yet...</em>';
+        if (data.length === 0) {
+          inbox.innerHTML = "<em>No messages yet...</em>";
           return;
         }
 
-        data['hydra:member'].forEach(msg => {
-          const msgBox = document.createElement('div');
-          msgBox.className = 'message';
-          msgBox.innerHTML = `<strong>${msg.from.address}</strong><br><em>${msg.subject}</em>`;
+        for (const msg of data) {
+          const msgBox = document.createElement("div");
+          msgBox.className = "message";
+          msgBox.innerHTML = `<strong>${msg.from}</strong><br><em>${msg.subject}</em>`;
           inbox.appendChild(msgBox);
-        });
+        }
       }, 5000);
     }
 
     generateEmail();
     startTimer();
+    pollInbox();
   </script>
 </body>
 </html>
