@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>demMail — Temp Inbox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+    :root {
+      --bg: #0d0d12;
+      --glass: rgba(36, 0, 60, 0.45);
+      --text: #ffffff;
+      --accent: #a855f7;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .glass {
+      background: var(--glass);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-radius: 20px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.1);
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .email-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .email-text {
+      word-break: break-all;
+    }
+
+    button {
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+
+    .timer {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .message {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <h1>-// demMail</h1>
+    <div class="email-box">
+      <span class="email-text" id="email">Generating...</span>
+      <button onclick="copyEmail()">Copy</button>
+    </div>
+    <div class="timer" id="timer">Expires in: 10:00</div>
+    <div id="inbox"><em>Waiting for mail...</em></div>
+  </div>
+
+  <script>
+    let token = '', address = '', expiresIn = 600, inboxId = '';
+
+    async function generateEmail() {
+      const res = await fetch('https://api.mail.tm/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: `dem${Date.now()}@domail.tech`,
+          password: 'demcult123'
+        })
+      });
+
+      const data = await res.json();
+      address = data.address;
+      document.getElementById('email').textContent = address;
+
+      const tokenRes = await fetch('https://api.mail.tm/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: address,
+          password: 'demcult123'
+        })
+      });
+
+      const tokenData = await tokenRes.json();
+      token = tokenData.token;
+
+      fetchInbox(); // Start inbox polling
+    }
+
+    function copyEmail() {
+      navigator.clipboard.writeText(address);
+      alert('Copied to clipboard!');
+    }
+
+    function startTimer() {
+      setInterval(() => {
+        if (expiresIn <= 0) return;
+        expiresIn--;
+        const mins = Math.floor(expiresIn / 60);
+        const secs = expiresIn % 60;
+        document.getElementById('timer').textContent = `Expires in: ${mins}:${secs.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    async function fetchInbox() {
+      setInterval(async () => {
+        if (!token) return;
+
+        const res = await fetch('https://api.mail.tm/messages', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        const inbox = document.getElementById('inbox');
+        inbox.innerHTML = '';
+
+        if (data['hydra:member'].length === 0) {
+          inbox.innerHTML = '<em>No messages yet...</em>';
+          return;
+        }
+
+        data['hydra:member'].forEach(msg => {
+          const msgBox = document.createElement('div');
+          msgBox.className = 'message';
+          msgBox.innerHTML = `<strong>${msg.from.address}</strong><br><em>${msg.subject}</em>`;
+          inbox.appendChild(msgBox);
+        });
+      }, 5000);
+    }
+
+    generateEmail();
+    startTimer();
+  </script>
+</body>
+</html>
