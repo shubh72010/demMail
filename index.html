@@ -54,6 +54,7 @@
 
     .email-text {
       word-break: break-all;
+      max-width: 70%;
     }
 
     button {
@@ -92,21 +93,29 @@
   </div>
 
   <script>
-    let token = '', address = '', expiresIn = 600, inboxId = '';
+    let token = '', address = '', expiresIn = 600;
 
     async function generateEmail() {
+      const emailGen = `dem${Date.now()}@domail.tech`;
+
       const res = await fetch('https://api.mail.tm/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          address: `dem${Date.now()}@domail.tech`,
+          address: emailGen,
           password: 'demcult123'
         })
       });
 
       const data = await res.json();
-      address = data.address;
-      document.getElementById('email').textContent = address;
+      
+      if (data['@id']) {
+        address = data.address;
+        document.getElementById('email').textContent = address;
+      } else {
+        document.getElementById('email').textContent = 'Error creating email';
+        return;
+      }
 
       const tokenRes = await fetch('https://api.mail.tm/token', {
         method: 'POST',
@@ -120,12 +129,18 @@
       const tokenData = await tokenRes.json();
       token = tokenData.token;
 
-      fetchInbox(); // Start inbox polling
+      fetchInbox(); // Start polling inbox
     }
 
     function copyEmail() {
-      navigator.clipboard.writeText(address);
-      alert('Copied to clipboard!');
+      if (!address || address === '') {
+        alert("Email not ready yet!");
+        return;
+      }
+
+      navigator.clipboard.writeText(address)
+        .then(() => alert('Copied to clipboard!'))
+        .catch(err => alert('Failed to copy: ' + err));
     }
 
     function startTimer() {
